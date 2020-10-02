@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import org.springframework.hateoas.mediatype.JacksonHelper;
 import org.springframework.hateoas.mediatype.PropertyUtils;
 import org.springframework.lang.Nullable;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.*;

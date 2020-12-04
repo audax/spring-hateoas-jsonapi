@@ -161,6 +161,21 @@ public class WebMvcMovieController {
         return ResponseEntity.created(link.toUri()).build();
     }
 
+    @PostMapping("/moviesFromInterface")
+    public ResponseEntity<?> newMovieFromInterface(@RequestBody EntityModel<IMovie> movie) {
+        int newMovieId = MOVIES.size() + 1;
+        String newMovieIdString = "" + newMovieId;
+        IMovie iMovie = movie.getContent();
+        assert iMovie != null;
+        Movie movieContent = new Movie(iMovie.getId(), iMovie.getTitle());
+        movieContent.setId(newMovieIdString);
+        MOVIES.put(newMovieId, movieContent);
+
+        Link link = linkTo(methodOn(getClass()).findOne(newMovieId)).withSelfRel().expand();
+
+        return ResponseEntity.created(link.toUri()).build();
+    }
+
     @PostMapping("/moviesWithSingleDirector")
     public ResponseEntity<?> newMovieWithSingleDirector(@RequestBody EntityModel<MovieWithSingleDirector> movie) {
         int newMovieId = MOVIES.size() + 1;

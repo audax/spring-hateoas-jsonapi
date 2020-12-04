@@ -16,14 +16,15 @@
 package com.toedter.spring.hateoas.jsonapi;
 
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.toedter.spring.hateoas.jsonapi.support.IMovie;
+import com.toedter.spring.hateoas.jsonapi.support.MovieImpl;
 import com.toedter.spring.hateoas.jsonapi.support.WebMvcMovieController;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.DisplayNameGeneration;
-import org.junit.jupiter.api.DisplayNameGenerator;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,10 +41,9 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import static com.toedter.spring.hateoas.jsonapi.MediaTypes.JSON_API;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -223,6 +223,44 @@ class JsonApiWebMvcIntegrationTest extends AbstractJsonApiTest {
         compareWithFile(errorJson, "errorsMvcExample.json");
     }
 
+    @Test
+    void should_create_new_movie_from_interface() throws Exception {
+
+        String input = readFile("postMovie.json");
+
+        this.mockMvc.perform(post("/moviesFromInterface")
+                .content(input)
+                .contentType(JSON_API))
+                .andExpect(status().isCreated())
+                .andExpect(header().stringValues(HttpHeaders.LOCATION, "http://localhost/movies/3"));
+
+        String movieJson = this.mockMvc.perform(get("/movies/3")
+                .accept(JSON_API))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        compareWithFile(movieJson, "movieCreated.json");
+    }
+
+    @Test
+    void should_read_iMovie_with_MovieModule() throws Exception {
+        String input = readFile("simplePostMovie.json");
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new MovieModule());
+        JsonParser parser = objectMapper.createParser(input);
+        IMovie iMovie = parser.readValueAs(IMovie.class);
+        assertThat(iMovie.getTitle()).isEqualTo("Batman Begins");
+    }
+
+    static class MovieModule extends SimpleModule {
+        MovieModule() {
+            addAbstractTypeMapping(IMovie.class, MovieImpl.class);
+        }
+    }
+
     @Configuration
     @WebAppConfiguration
     @EnableWebMvc
@@ -241,8 +279,10 @@ class JsonApiWebMvcIntegrationTest extends AbstractJsonApiTest {
 
         @Bean
         JsonApiConfiguration jsonApiConfiguration() {
+
             return new JsonApiConfiguration()
                     .withObjectMapperCustomizer(objectMapper -> {
+                        objectMapper.registerModule(new MovieModule());
                         objectMapper.registerModule(new JavaTimeModule());
                         objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
                     });
